@@ -29,9 +29,14 @@ cd Spark-Data-Extractor-SDK
 
 ## Publication status
 
-The connected account was verified as `MMDBadCoder`, and the public repository at
-the canonical URL above exists. Source publication and its verification are
-recorded separately from this repository metadata document.
+The connected account was verified as `MMDBadCoder`, and the reviewed source is
+published on the `main` branch of the public repository. The initial source
+publication is commit
+[`a04c75536a320aab4d795878969681d6fcac5ab4`](https://github.com/MMDBadCoder/Spark-Data-Extractor-SDK/commit/a04c75536a320aab4d795878969681d6fcac5ab4).
+After publication, the remote and reviewed local repository were fetched and
+verified to have the same complete tree,
+`c58d7dffaf354533789b08eab0f492383ca42b8b` (41 files, including the binary Word
+guide).
 
 ## Authorship and licensing
 
