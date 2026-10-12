@@ -4,6 +4,8 @@ The approved specification fits a small trusted-user SDK. No new backend, schedu
 
 The critical deployment risks are live Spark Connect cancellation semantics, endpoint client compatibility, WebHDFS redirects/authentication, source-scale scan cost, and CSV round-trip handling. Unit doubles can verify ordering and failure paths; they cannot prove remote resource release or performance on 100 GB–1 TB daily inputs.
 
+`Query.show_columns()` adds a discovery step before filters and projection. After `.between(...)`, it opens a fresh Connect session to read the fixed administrator-configured source schema, prints a Persian column/type table, and returns immutable metadata. It requires dates, but no export limit or target file count. It performs no row count, filter, projection, export, destination selection, or manifest creation. Discovery uses the same exclusive SDK lock and acquisition/execution deadlines, cancellation attempts, and cleanup guarantees as export. Its live schema and session behavior must be included in deployment smoke qualification.
+
 ## Explicit design decisions
 
 - PySpark 4.0.1 is a provisional optional client target until the deployed Spark 4.x minor is confirmed. Pin and qualify the transitive wheelhouse for that environment.

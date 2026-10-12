@@ -8,14 +8,15 @@ from data_extractor import Query
 
 query = Query("customer_search")
 query.between("2026-01-01", "2026-01-07")
-query.where((col("a") > 10) & col("b").startswith("asdasa"))
-query.select("a", "b", "c")
+columns = query.show_columns()  # inspect the Persian name/type table first
+query.where((col("customer_id") > 10) & col("status").startswith("ready"))
+query.select("customer_id", "status")
 query.limit(1_000_000)
 query.output_files(4)
 query.run()
 ```
 
-Use a fresh Connect-only kernel; importing `data_extractor` enables Connect mode before `col()` is evaluated. Do not mix this SDK with an already active classic Spark session. Replace sample column names with the fixed dataset's actual columns. `run()` prints Persian progress and a completion summary. Dates are inclusive, at most seven days; every input day must exist. `limit` and `output_files` are required. Multiple `where` calls combine with AND. Rows selected by `limit` are nondeterministic.
+Use a fresh Connect-only kernel; importing `data_extractor` enables Connect mode before `col()` is evaluated. Do not mix this SDK with an already active classic Spark session. `.show_columns()` follows `.between(...)`, prints the fixed source's Persian column/type table, and returns immutable metadata. It is a schema-only discovery call: it needs dates, but no `.limit()` or `.output_files()`, and does not filter, project, count rows, export, or create a manifest. Use the real column names it reports in subsequent filters and selection. `run()` prints Persian progress and a completion summary. Dates are inclusive, at most seven days; every input day must exist. `limit` and `output_files` are required for export. Multiple `where` calls combine with AND. Rows selected by `limit` are nondeterministic.
 
 ## Install and configure
 
@@ -24,7 +25,7 @@ Python 3.10+ is required. The optional Connect extra provisionally pins PySpark 
 ```bash
 python -m pip install -e '.[connect,dev]'
 python -m build
-python -m pip install 'dist/data_extractor-0.1.0-py3-none-any.whl[connect]'
+python -m pip install 'dist/data_extractor-0.2.0-py3-none-any.whl[connect]'
 export DATA_EXTRACTOR_CONFIG=/protected/admin.yaml
 ```
 
@@ -33,12 +34,17 @@ An administrator fills [examples/admin.yaml](examples/admin.yaml), protects it f
 For offline installation, on a connected machine with the same Python/platform, collect the wheel plus dependencies:
 
 ```bash
-python -m pip download --dest wheelhouse 'dist/data_extractor-0.1.0-py3-none-any.whl[connect]'
+python -m pip download --dest wheelhouse 'dist/data_extractor-0.2.0-py3-none-any.whl[connect]'
 # Transfer wheelhouse to Jupyter, then:
-python -m pip install --no-index --find-links wheelhouse 'data-extractor[connect]==0.1.0'
+python -m pip install --no-index --find-links wheelhouse 'data-extractor[connect]==0.2.0'
 ```
 
 Copy the [customer notebook](notebooks/customer_example.ipynb) and [Persian guide](docs/customer_guide_fa.docx) to the customer environment. The wheel includes YAML resources; notebook and guide are source-delivery artifacts.
+
+## Primary guides
+
+- [Persian customer guide (Markdown)](docs/customer_guide_fa.md) and [Persian customer guide (Word)](docs/customer_guide_fa.docx)
+- [English service-owner and developer operations guide](docs/owner_guide_en.md)
 
 ## Download
 
@@ -61,6 +67,6 @@ The execution deadline covers Spark acquisition through output verification and 
 
 ## Validation and delivery
 
-See [assessment](docs/ASSESSMENT.md), [design](docs/DESIGN.md), [status](docs/STATUS.md), and [cluster smoke checklist](docs/SMOKE_TEST.md). Local mocked tests are not proof of live Spark/HDFS behavior. Publication and licensing status are in [repository notes](docs/REPOSITORY.md). No open-source license is currently selected.
+Supporting material: [assessment](docs/ASSESSMENT.md), [design](docs/DESIGN.md), [status](docs/STATUS.md), [cluster smoke checklist](docs/SMOKE_TEST.md), and [repository notes](docs/REPOSITORY.md). Local mocked tests are not proof of live Spark/HDFS behavior. No open-source license is currently selected.
 
 Run tests with `python -m unittest discover -s tests -v` after installing dependencies. The native Column test uses the optional Connect client and skips when it is absent. It constructs real expressions without a live Spark endpoint.

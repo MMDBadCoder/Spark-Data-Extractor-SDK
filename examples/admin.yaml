@@ -24,4 +24,5 @@ webhdfs:
   token: null
 logging:
   file: /tmp/data_extractor.log
+runtime:
   lock_file: /tmp/data_extractor.lock

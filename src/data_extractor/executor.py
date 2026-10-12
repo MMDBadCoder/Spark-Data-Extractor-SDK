@@ -14,6 +14,7 @@ import traceback
 from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
+from types import SimpleNamespace
 from uuid import uuid4
 from zoneinfo import ZoneInfo
 
@@ -21,8 +22,9 @@ from . import session as sessions
 from .exceptions import ExtractionError
 from .messages import emit
 from .result import Result
+from .query import ColumnInfo
 from .webhdfs import WebHDFS
-from .writer import write_and_verify
+from .writer import input_paths, write_and_verify
 
 LOG = logging.getLogger('data_extractor')
 _PROCESS_LOCK = threading.Lock()
@@ -109,7 +111,7 @@ class _State:
             self.stop_done.wait()
 
 
-def _worker(state, lease, spec, config, name, output_path):
+def _worker(state, lease, config, name, operation):
     try:
         state.checkpoint()
         emit('CONNECTING')
@@ -121,11 +123,7 @@ def _worker(state, lease, spec, config, name, output_path):
         state.checkpoint()
         state.ready_at = time.monotonic()
         state.ready.set()
-        with WebHDFS(config) as hdfs:
-            if hdfs.exists(output_path):
-                raise ExtractionError('OUTPUT_EXISTS')
-            state.checkpoint()
-            state.result = write_and_verify(state.session, spec, config, hdfs, output_path, state.checkpoint)
+        state.result = operation(state.session, state.checkpoint)
     except BaseException as exc:
         state.error = exc
         LOG.exception('event=worker_failed remote_cleanup=unconfirmed')
@@ -144,7 +142,7 @@ def _worker(state, lease, spec, config, name, output_path):
             lease.close()
 
 
-def run_query(spec, config):
+def _execute(config, name, operation, result_handler):
     try:
         _logging(config)
     except OSError as exc:
@@ -153,12 +151,9 @@ def run_query(spec, config):
     state = _State()
     start = time.monotonic()
     execution_id = uuid4().hex[:12]
-    captured = datetime.now(ZoneInfo(config.timezone))
-    date = captured.date().isoformat()
-    output_path = posixpath.join(config.output_base, 'result', captured.strftime('%Y/%m/%d'), spec.name)
-    name = f'{config.session_prefix}_{spec.name}_{execution_id}'
+    name = f'{config.session_prefix}_{name}_{execution_id}'
     lease = _Lease(config)
-    thread = threading.Thread(target=_worker, args=(state, lease, spec, config, name, output_path), daemon=True)
+    thread = threading.Thread(target=_worker, args=(state, lease, config, name, operation), daemon=True)
     try:
         thread.start()
     except BaseException:
@@ -184,21 +179,7 @@ def run_query(spec, config):
                 raise state.error
             code = 'WRITE_FAILED' if state.ready.is_set() else 'SESSION_FAILED'
             raise ExtractionError(code) from state.error
-        # Only the caller can publish COMPLETE. A worker abandoned on timeout
-        # cannot reach this code, even if Spark later finishes its write.
-        measured = state.result
-        manifest = dict(version=1, status='COMPLETE', query_name=spec.name,
-                        execution_id=execution_id, execution_date=date,
-                        created_at=captured.isoformat(), **measured)
-        with WebHDFS(config) as hdfs:
-            hdfs.create_json(output_path + '/_extract_manifest.json', manifest)
-        result = Result(spec.name, execution_id, date, time.monotonic() - start,
-                        measured['row_count'], len(measured['files']), measured['total_bytes'],
-                        output_path, f'data-extractor download {spec.name} --date {date} --output ./downloads')
-        emit('COMPLETE')
-        emit('SUMMARY', **asdict(result))
-        LOG.info('event=complete execution_id=%s rows=%s files=%s', execution_id, result.row_count, result.file_count)
-        return result
+        return result_handler(state.result, execution_id, start)
     except BaseException:
         state.aborted.set()
         if not state.done.is_set():
@@ -211,3 +192,75 @@ def run_query(spec, config):
         state.caller_done.set()
         if state.done.is_set():
             thread.join(timeout=0.2)
+
+
+def run_query(spec, config):
+    captured = datetime.now(ZoneInfo(config.timezone))
+    date = captured.date().isoformat()
+    output_path = posixpath.join(config.output_base, 'result', captured.strftime('%Y/%m/%d'), spec.name)
+
+    def operation(spark, checkpoint):
+        with WebHDFS(config) as hdfs:
+            if hdfs.exists(output_path):
+                raise ExtractionError('OUTPUT_EXISTS')
+            checkpoint()
+            return write_and_verify(spark, spec, config, hdfs, output_path, checkpoint)
+
+    def finish(measured, execution_id, start):
+        manifest = dict(version=1, status='COMPLETE', query_name=spec.name,
+                        execution_id=execution_id, execution_date=date,
+                        created_at=captured.isoformat(), **measured)
+        with WebHDFS(config) as hdfs:
+            hdfs.create_json(output_path + '/_extract_manifest.json', manifest)
+        result = Result(spec.name, execution_id, date, time.monotonic() - start,
+                        measured['row_count'], len(measured['files']), measured['total_bytes'],
+                        output_path, f'data-extractor download {spec.name} --date {date} --output ./downloads')
+        emit('COMPLETE')
+        emit('SUMMARY', **asdict(result))
+        LOG.info('event=complete execution_id=%s rows=%s files=%s', execution_id, result.row_count, result.file_count)
+        return result
+
+    return _execute(config, spec.name, operation, finish)
+
+
+def discover_columns(query_name, start_date, end_date, config):
+    """Read only the schemas for configured daily Parquet inputs."""
+    def operation(spark, checkpoint):
+        with WebHDFS(config) as hdfs:
+            emit('READING')
+            date_range = SimpleNamespace(start_date=start_date, end_date=end_date)
+            paths = input_paths(date_range, config, hdfs)
+        checkpoint()
+        emit('SCHEMA_READING')
+        try:
+            schema = spark.read.parquet(*paths).schema
+            return tuple(ColumnInfo(field.name, field.dataType.simpleString(), field.nullable)
+                         for field in schema.fields)
+        except ExtractionError:
+            raise
+        except BaseException as exc:
+            raise ExtractionError('SCHEMA_FAILED') from exc
+
+    def finish(columns, _execution_id, _start):
+        _print_columns(columns)
+        return columns
+
+    return _execute(config, query_name, operation, finish)
+
+
+_TYPE_LABELS = {'string': 'متن', 'boolean': 'منطقی', 'byte': 'عدد صحیح',
+                'short': 'عدد صحیح', 'integer': 'عدد صحیح',
+                'int': 'عدد صحیح', 'long': 'عدد صحیح',
+                'bigint': 'عدد صحیح', 'float': 'عدد اعشاری',
+                'double': 'عدد اعشاری', 'decimal': 'عدد اعشاری',
+                'date': 'تاریخ', 'timestamp': 'زمان', 'timestamp_ntz': 'زمان بدون منطقهٔ زمانی',
+                'binary': 'دادهٔ باینری', 'array': 'فهرست', 'map': 'نگاشت', 'struct': 'ساختار'}
+
+
+def _print_columns(columns):
+    emit('COLUMNS_TITLE')
+    print('نام ستون | نوع داده | تهی‌پذیر', flush=True)
+    print('---------|----------|----------', flush=True)
+    for column in columns:
+        label = _TYPE_LABELS.get(column.data_type.split('(')[0], column.data_type)
+        print(f'{column.name} | {label} | {"بله" if column.nullable else "خیر"}', flush=True)

@@ -2,6 +2,14 @@ from .config import load_config
 from .validation import (QuerySpec, validate_name, parse_iso_date, positive_integer,
                          validate_columns, validate_predicate, validate_spec)
 from .exceptions import ExtractionError
+from dataclasses import dataclass
+
+
+@dataclass(frozen=True)
+class ColumnInfo:
+    name: str
+    data_type: str
+    nullable: bool
 
 
 class Query:
@@ -48,6 +56,22 @@ class Query:
             spec = self._validated_spec(config)
             from .executor import run_query
             return run_query(spec, config)
+        except ExtractionError as exc:
+            print(str(exc), flush=True)
+            raise
+
+    def show_columns(self):
+        """Print and return the source schema for this query's date range."""
+        try:
+            config = load_config()
+            validate_name(self._name)
+            if self._start is None or self._end is None:
+                raise ExtractionError('DATES_REQUIRED')
+            days = (self._end - self._start).days + 1
+            if not 1 <= days <= min(config.max_days, 7):
+                raise ExtractionError('INVALID_DATE_RANGE')
+            from .executor import discover_columns
+            return discover_columns(self._name, self._start, self._end, config)
         except ExtractionError as exc:
             print(str(exc), flush=True)
             raise

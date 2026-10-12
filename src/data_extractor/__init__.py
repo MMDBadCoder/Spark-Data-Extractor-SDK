@@ -5,8 +5,8 @@ import os
 # customers build native Column expressions; no session is created at import.
 os.environ.setdefault('SPARK_CONNECT_MODE_ENABLED', '1')
 
-from .query import Query
+from .query import Query, ColumnInfo
 from .result import Result
 from .exceptions import ExtractionError
 
-__all__ = ['Query', 'Result', 'ExtractionError']
+__all__ = ['Query', 'Result', 'ColumnInfo', 'ExtractionError']
