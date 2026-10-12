@@ -146,6 +146,11 @@ def build_docx():
         style.paragraph_format.space_before = Pt(11 if style_name != "Title" else 0)
         style.paragraph_format.space_after = Pt(5)
         style.paragraph_format.keep_with_next = True
+        if style_name == "Title":
+            ppr = style._element.get_or_add_pPr()
+            border = ppr.find(qn("w:pBdr"))
+            if border is not None:
+                ppr.remove(border)
 
     lines = source.splitlines()
     i = 0
@@ -199,7 +204,7 @@ def build_notebook():
     def code(text):
         cells.append({"cell_type": "code", "execution_count": None, "metadata": {}, "outputs": [], "source": text.splitlines(True)})
 
-    md("# پیدا کردن ستون‌ها و گرفتن خروجی\nمدیر اتصال دفترچه را آماده کرده است. ابتدا تاریخ را وارد کنید و جدول نام و نوع ستون‌ها را ببینید؛ سپس شرط و خروجی را کامل کنید. راهنما: `docs/customer_guide_fa.docx`.")
+    md("# پیدا کردن ستون‌ها و گرفتن خروجی\nمدیر اتصال دفترچه را آماده کرده است و تنظیمات مدیر در فایل یا محیط امن بیرون دفترچه نگهداری می‌شود. کاربر لازم نیست نشانی Spark یا HDFS را وارد کند. اگر پروژه را از ZIP اجرا می‌کنید، Jupyter را از ریشهٔ پروژه اجرا کنید تا پوشهٔ `data_extractor/` کنار دفترچه باشد؛ `admin.yaml` ریشه فقط نمونهٔ خالی است و مدیر باید آن را تنظیم کند. برای محیط واقعی، پیکربندی بیرونی و محافظت‌شده ترجیح دارد. ابتدا تاریخ را وارد کنید و جدول نام و نوع ستون‌ها را ببینید؛ سپس شرط و خروجی را کامل کنید. راهنما: `docs/customer_guide_fa.docx`.")
     code('from data_extractor import Query\n\nquery = Query("customer_search")\nquery.between("2026-01-01", "2026-01-07")\ncolumns = query.show_columns()  # جدول فارسی نام و نوع ستون‌ها\n')
     md("## انتخاب شرط و خروجی\nنام‌های `customer_id` و `status` نمونه‌اند؛ پس از دیدن جدول بالا، آن‌ها را با نام‌های واقعی عوض کنید. این سلول را پس از سلول کشف ستون‌ها اجرا کنید. `limit` و `output_files` برای خروجی لازم‌اند.")
     code('from pyspark.sql.functions import col\n\nquery.where((col("customer_id") > 10) & (col("status") == "ready"))\nquery.select("customer_id", "status")\nquery.limit(100_000)\nquery.output_files(4)\nquery.run()\n')
@@ -211,7 +216,7 @@ def build_notebook():
         "nbformat": 4,
         "nbformat_minor": 5,
     }
-    (ROOT / "notebooks/customer_example.ipynb").write_text(json.dumps(notebook, ensure_ascii=False, indent=2), encoding="utf-8")
+    (ROOT / "customer_example.ipynb").write_text(json.dumps(notebook, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
 if __name__ == "__main__":

@@ -124,9 +124,17 @@ def load_config(path=None, downloader=False):
     try:
         defaults = yaml.safe_load(files('data_extractor').joinpath('resources/defaults.yaml').read_text(encoding='utf-8'))
         values = _flatten(defaults)
-        selected = path or (os.environ.get('DATA_EXTRACTOR_DOWNLOAD_CONFIG') if downloader else None) or os.environ.get('DATA_EXTRACTOR_CONFIG')
+        env_name = 'DATA_EXTRACTOR_DOWNLOAD_CONFIG' if downloader else 'DATA_EXTRACTOR_CONFIG'
+        selected = path or os.environ.get(env_name)
         if selected:
             values.update(_flatten(yaml.safe_load(Path(selected).read_text(encoding='utf-8'))))
+        elif not downloader:
+            # A checkout may carry its administrator file beside pyproject.toml.
+            # Installed wheels use packaged defaults and must not inspect cwd.
+            checkout_admin = Path(__file__).resolve().parent.parent / 'admin.yaml'
+            if (checkout_admin.is_file() and
+                    (checkout_admin.parent / 'pyproject.toml').is_file()):
+                values.update(_flatten(yaml.safe_load(checkout_admin.read_text(encoding='utf-8'))))
         return _validate(Config(**values), downloader)
     except ExtractionError:
         raise

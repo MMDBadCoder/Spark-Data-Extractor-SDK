@@ -5,12 +5,12 @@
 Lead review approved the local prototype on 2026-10-12 after running:
 
 ```sh
-PYTHONPATH=src:.test-deps python -m coverage erase
-PYTHONPATH=src:.test-deps python -m coverage run --branch -m unittest discover -s tests -v
-PYTHONPATH=src:.test-deps python -m coverage report --fail-under=85
+PYTHONPATH=.:.test-deps python -m coverage erase
+PYTHONPATH=.:.test-deps python -m coverage run --branch -m unittest discover -s tests -v
+PYTHONPATH=.:.test-deps python -m coverage report --fail-under=85
 ```
 
-Result: **44 tests passed** on Python 3.12 in 3.54 seconds. Coverage.py 7.16.2 measured **87% statement-and-branch coverage** across `src/data_extractor` (801 statements, 87 missed; 222 branches, 40 partial). The checked-in configuration enables branch measurement and enforces an 85% minimum.
+Result: **44 tests passed** on Python 3.12 in 3.54 seconds. Coverage.py 7.16.2 measured **87% statement-and-branch coverage** across `data_extractor` (801 statements, 87 missed; 222 branches, 40 partial). The checked-in configuration enables branch measurement and enforces an 85% minimum.
 
 | Module | Coverage |
 |---|---:|
@@ -45,3 +45,13 @@ The final Persian Word guide was generated as US Letter with 11-point Persian-ca
 - The overall timeout still excludes final manifest publication, as documented in `ASSESSMENT.md`; strict remote cancellation is not claimed.
 
 All live acceptance rows in `SMOKE_TEST.md` remain pending until evidence is captured from the target environment.
+
+## Root-package/config follow-up
+
+After moving the package from `src/data_extractor/` to root `data_extractor/`, the following local checks passed:
+
+- `python -m pip wheel . --no-deps --no-build-isolation -w /tmp/spark-sdk-wheel` built `data_extractor-0.2.0-py3-none-any.whl`.
+- A subprocess imported `data_extractor` from both the checkout root and a source-tree ZIP, and loaded packaged resources from the ZIP outside the checkout. These import-only processes supplied a minimal `requests` import stub because the runtime lacks the declared dependency. The ZIP check also confirmed that a working-directory `admin.yaml` is ignored when the package is loaded from an archive.
+- `python -m unittest tests.test_source_import tests.test_config tests.test_validation tests.test_writer -v` passed 23 tests, including direct imports from a clean checkout subprocess and source ZIP, explicit/environment/source-checkout/default config precedence, and downloader separation.
+
+The full suite was attempted, but this runtime does not have `requests` or `pytest`, and dependency installation could not be completed. The full-suite figures above document the prior lead-reviewed package state, not a full rerun after this layout-only follow-up. No live Spark or HDFS validation was performed.

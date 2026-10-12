@@ -19,3 +19,9 @@ The critical deployment risks are live Spark Connect cancellation semantics, end
 - Downloader supports simple user identity or delegation tokens. Kerberos/proxy authentication is an explicit deployment gap requiring an adapter.
 
 A row limit cannot cap source scan cost. Exact compressed sizes and exact requested physical file counts are not promised. Partial failures may leave folders without manifests; administration owns cleanup and retention. See the smoke checklist before customer release.
+
+## Packaging and configuration follow-up
+
+The distribution now uses a single importable `data_extractor/` package at the repository root, so a source checkout or ZIP source tree can import it without adding `src/` to `PYTHONPATH`. Setuptools discovers only the root package and includes its YAML resources. The root `admin.yaml` is a non-live source-checkout placeholder. Runtime config resolution selects an explicit path, then `DATA_EXTRACTOR_CONFIG`, then that root file only when the package is inside a checkout, and finally packaged defaults. Downloader resolution uses its own explicit path or `DATA_EXTRACTOR_DOWNLOAD_CONFIG` and never inherits runtime config or checkout `admin.yaml`.
+
+The config tests cover those precedence and isolation rules. A complete suite rerun still requires the project's declared `requests` and `pytest` dependencies, which are absent from this execution image.

@@ -4,7 +4,7 @@ Run in a nonproduction namespace with known daily Parquet fixtures. Record Spark
 
 | AC | Check | Local evidence scope | Live status |
 |---|---|---|---|
-| 01 | Execute notebook with no explicit session/path/result assignment | Notebook structure | Pending |
+| 01 | Launch Jupyter from extracted source root and execute root-level notebook with no explicit session/path/result assignment | Source import subprocess and notebook structure | Pending |
 | 02 | Accept seven inclusive days; reject eight before connection | Validation unit doubles | Pending |
 | 03 | Test AND, OR, startswith, repeated where, projection and invalid predicates | Real 4.0.1 native Column construction without server; writer doubles | Pending |
 | 04 | Missing, bool, zero, negative, excessive limits/file counts print Persian errors | Validation unit doubles | Pending |
@@ -40,7 +40,7 @@ or cluster execution.
 Run locally with:
 
 ```sh
-PYTHONPATH=src:.test-deps python -m pytest -q
+PYTHONPATH=.:.test-deps python -m pytest -q
 ```
 
 The current run passed 37 tests and 43 subtests, including 3 local-HTTP tests.

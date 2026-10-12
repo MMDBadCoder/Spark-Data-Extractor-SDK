@@ -18,6 +18,14 @@ query.run()
 
 Use a fresh Connect-only kernel; importing `data_extractor` enables Connect mode before `col()` is evaluated. Do not mix this SDK with an already active classic Spark session. `.show_columns()` follows `.between(...)`, prints the fixed source's Persian column/type table, and returns immutable metadata. It is a schema-only discovery call: it needs dates, but no `.limit()` or `.output_files()`, and does not filter, project, count rows, export, or create a manifest. Use the real column names it reports in subsequent filters and selection. `run()` prints Persian progress and a completion summary. Dates are inclusive, at most seven days; every input day must exist. `limit` and `output_files` are required for export. Multiple `where` calls combine with AND. Rows selected by `limit` are nondeterministic.
 
+## Quick start from the source ZIP
+
+1. Upload `Spark-Data-Extractor-SDK.zip` to the Jupyter host and extract it. Open the extracted project root—the folder containing `pyproject.toml`, `admin.yaml`, `data_extractor/`, and `customer_example.ipynb`—as the Jupyter working directory.
+2. The administrator edits that root `admin.yaml` in the deployed copy and gives the notebook kernel read access. The checked-in file has `null` endpoints; do not share live endpoints or credentials in the distributed ZIP. The root file is a source-checkout convenience. For production, prefer a protected external file selected with `DATA_EXTRACTOR_CONFIG`.
+3. Start Jupyter with the extracted project root as its working directory, using a kernel with the required SDK dependencies already installed. Open the root-level `customer_example.ipynb` and run its import cell: `from data_extractor import Query`. The package imports directly from that root without an editable install or `PYTHONPATH` setting.
+
+The ZIP's `admin.yaml` starts with `null` endpoints and will not connect until an administrator configures it. Never put live endpoints or credentials into a ZIP distributed to customers.
+
 ## Install and configure
 
 Python 3.10+ is required. The optional Connect extra provisionally pins PySpark 4.0.1; the deployed Spark minor version is unknown. An administrator must match and validate the client and its transitive dependencies against the real endpoint before deployment. The pin is a target assumption, not a compatibility certification.
@@ -29,7 +37,7 @@ python -m pip install 'dist/data_extractor-0.2.0-py3-none-any.whl[connect]'
 export DATA_EXTRACTOR_CONFIG=/protected/admin.yaml
 ```
 
-An administrator fills [examples/admin.yaml](examples/admin.yaml), protects it from customer edits, and preconfigures the notebook. Packaged defaults intentionally contain no live endpoints. External YAML overrides defaults. The SDK protects its documented API, not an isolated Python runtime against a malicious user.
+An administrator prepares a protected YAML config and preconfigures the notebook. Configuration selection is: explicit `--config`/API path, then the runtime-specific environment variable, then the repository-root `admin.yaml` when running from a source checkout, then packaged defaults. The root `admin.yaml` is a placeholder; installed wheels never inspect the current directory. Downloader settings stay separate under `DATA_EXTRACTOR_DOWNLOAD_CONFIG`. The SDK protects its documented API, not an isolated Python runtime against a malicious user.
 
 For offline installation, on a connected machine with the same Python/platform, collect the wheel plus dependencies:
 
@@ -39,7 +47,7 @@ python -m pip download --dest wheelhouse 'dist/data_extractor-0.2.0-py3-none-any
 python -m pip install --no-index --find-links wheelhouse 'data-extractor[connect]==0.2.0'
 ```
 
-Copy the [customer notebook](notebooks/customer_example.ipynb) and [Persian guide](docs/customer_guide_fa.docx) to the customer environment. The wheel includes YAML resources; notebook and guide are source-delivery artifacts.
+Copy the [customer notebook](customer_example.ipynb) and [Persian guide](docs/customer_guide_fa.docx) to the customer environment. The wheel includes YAML resources; notebook and guide are source-delivery artifacts.
 
 ## Primary guides
 

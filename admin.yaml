@@ -1,0 +1,25 @@
+# Source-checkout administrator configuration placeholder.
+# Replace null endpoints in a protected local copy before running the SDK.
+spark:
+  connect_url: null
+  session_prefix: extract
+  connect_timeout_seconds: 60
+  execution_timeout_seconds: 3600
+hdfs:
+  uri: null
+  input_base: /warehouse/source
+  output_base: /warehouse
+query:
+  max_days: 7
+  max_limit: 1000000000
+  max_output_files: 200
+  max_planned_rows_per_file: 2000000
+output:
+  timezone: Asia/Tehran
+  target_compressed_mb: null
+  max_records_per_file: 2000000
+webhdfs:
+  base_url: null
+  timeout_seconds: 60
+  user: null
+  token: null

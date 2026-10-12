@@ -18,14 +18,15 @@ dev = ["build>=1.2,<2", "coverage>=7.6,<8", "pytest>=8,<10"]
 data-extractor = "data_extractor.cli:main"
 
 [tool.setuptools.packages.find]
-where = ["src"]
+where = ["."]
+include = ["data_extractor*"]
 
 [tool.setuptools.package-data]
 data_extractor = ["resources/*.yaml"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["src"]
+pythonpath = [".", ".test-deps"]
 
 [tool.coverage.run]
 source = ["data_extractor"]

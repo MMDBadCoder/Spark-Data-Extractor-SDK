@@ -41,7 +41,7 @@ No endpoint, certificate, principal, or auth scheme is supplied as a live value 
 
 ## Protected configuration and customer boundary
 
-The package defaults are intentionally non-live placeholders. Set `DATA_EXTRACTOR_CONFIG` for the notebook process to an administrator-managed YAML file. The notebook process must be able to read it; the customer account must not be able to modify it. A common Unix arrangement is an administrator-owned file with mode `0640`, owned by a dedicated admin account and readable by a service group that includes the notebook runtime account. Protect parent directories too. Choose ownership and groups according to local policy; do not make the file unreadable to the Jupyter process or writable by the customer.
+The packaged defaults intentionally have no live endpoints. Runtime config selection is explicit API/CLI path, then `DATA_EXTRACTOR_CONFIG`, then repository-root `admin.yaml` only in a source checkout, then packaged defaults. Installed wheels do not inspect the current directory. The checked-in root `admin.yaml` is a placeholder. Set `DATA_EXTRACTOR_CONFIG` for the notebook process to an administrator-managed YAML file. The notebook process must be able to read it; the customer account must not be able to modify it. A common Unix arrangement is an administrator-owned file with mode `0640`, owned by a dedicated admin account and readable by a service group that includes the notebook runtime account. Protect parent directories too. Choose ownership and groups according to local policy; do not make the file unreadable to the Jupyter process or writable by the customer.
 
 The schema is strict: unknown top-level and nested keys are rejected. Supported sections and keys are:
 
@@ -91,7 +91,7 @@ python -m pip check
 python -m unittest discover -s tests -v
 ```
 
-The wheel must include `src/data_extractor/resources/*.yaml`. To prepare an offline installation, download the built wheel and the complete qualified dependency closure on a connected machine with the same platform/Python constraints, then transfer and install from a wheelhouse:
+The wheel must include `data_extractor/resources/*.yaml`. To prepare an offline installation, download the built wheel and the complete qualified dependency closure on a connected machine with the same platform/Python constraints, then transfer and install from a wheelhouse:
 
 ```bash
 python -m pip download --dest wheelhouse 'dist/data_extractor-0.2.0-py3-none-any.whl[connect]'
