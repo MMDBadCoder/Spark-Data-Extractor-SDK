@@ -6,13 +6,13 @@ A small Python SDK for a trusted customer using Jupyter: read administrator-conf
 from pyspark.sql.functions import col
 from data_extractor import Query
 
-(Query("customer_search")
- .between("2026-01-01", "2026-01-07")
- .where((col("a") > 10) & col("b").startswith("asdasa"))
- .select("a", "b", "c")
- .limit(1_000_000)
- .output_files(4)
- .run())
+query = Query("customer_search")
+query.between("2026-01-01", "2026-01-07")
+query.where((col("a") > 10) & col("b").startswith("asdasa"))
+query.select("a", "b", "c")
+query.limit(1_000_000)
+query.output_files(4)
+query.run()
 ```
 
 Use a fresh Connect-only kernel; importing `data_extractor` enables Connect mode before `col()` is evaluated. Do not mix this SDK with an already active classic Spark session. Replace sample column names with the fixed dataset's actual columns. `run()` prints Persian progress and a completion summary. Dates are inclusive, at most seven days; every input day must exist. `limit` and `output_files` are required. Multiple `where` calls combine with AND. Rows selected by `limit` are nondeterministic.

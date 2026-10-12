@@ -10,13 +10,13 @@
 from pyspark.sql.functions import col
 from data_extractor import Query
 
-(Query("customer_search")
- .between("2026-01-01", "2026-01-07")
- .where((col("a") > 10) & col("b").startswith("asdasa"))
- .select("a", "b", "c")
- .limit(1_000_000)
- .output_files(4)
- .run())
+query = Query("customer_search")
+query.between("2026-01-01", "2026-01-07")
+query.where((col("a") > 10) & col("b").startswith("asdasa"))
+query.select("a", "b", "c")
+query.limit(1_000_000)
+query.output_files(4)
+query.run()
 ```
 
 تاریخ‌ها با قالب سال ماه روز انگلیسی نوشته می‌شوند و هر دو روز ابتدا و پایان در بازه هستند. بازه باید یک تا هفت روز باشد. نبودن داده حتی برای یک روز خطاست. limit و output_files الزامی‌اند. سقف رکورد باید عدد صحیح مثبت و حداکثر یک میلیارد باشد؛ مدیر می‌تواند سقف پایین‌تری تعیین کند. اگر رکوردهای مطابق شرط کمتر باشند، نتیجه کوچک‌تر خواهد بود. ترتیب یا انتخاب رکوردها تضمین‌شده نیست.
