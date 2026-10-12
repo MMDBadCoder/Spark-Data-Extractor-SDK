@@ -1,0 +1,7 @@
+# Collaboration policy
+
+The user requires GPT-5.6 Sol (low reasoning) to lead this project: assess requirements, design the architecture, decompose work, and review and approve implementation before integration. Delegate scoped implementation to the simpler gpt-6-luna model at low reasoning; GPT-5.6 Sol owns review decisions. Preserve this workflow for future sessions. The user has authorized commit and public repository delivery, subject to lead review and approval before integration. Follow the lead review gate and available publication capabilities; do not invent access or claim publication without evidence.
+
+Read docs/PRD.md before changing behavior. Treat it as the verbatim approved specification; explain divergences in docs/ASSESSMENT.md. Keep customer-facing errors and instructions Persian. Never embed live endpoints, credentials, or customer data in examples. Do not claim cluster validation from mocked unit tests. Record actual validation and remaining deployment gates in docs/STATUS.md and docs/SMOKE_TEST.md.
+
+Use native Spark Column predicates, fresh Spark Connect sessions, bounded output, verified completion manifests, and exclusive SDK execution. Preserve the execution lock while a timed-out worker is still alive; never publish COMPLETE after a timeout. Do not guarantee remote cancellation or exact physical file counts. Keep runtime and downloader configuration separate.

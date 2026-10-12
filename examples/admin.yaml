@@ -1,0 +1,27 @@
+# Administrator only. Replace placeholders; protect this file from customer edits.
+spark:
+  connect_url: sc://spark-connect.example.invalid:15002
+  session_prefix: extract
+  connect_timeout_seconds: 60
+  execution_timeout_seconds: 3600
+hdfs:
+  uri: hdfs://namenode.example.invalid
+  input_base: /warehouse/source
+  output_base: /warehouse
+query:
+  max_days: 7
+  max_limit: 1000000000
+  max_output_files: 200
+  max_planned_rows_per_file: 2000000
+output:
+  timezone: Asia/Tehran
+  target_compressed_mb: null
+  max_records_per_file: 2000000
+webhdfs:
+  base_url: http://webhdfs.example.invalid:9870
+  timeout_seconds: 60
+  user: null
+  token: null
+logging:
+  file: /tmp/data_extractor.log
+  lock_file: /tmp/data_extractor.lock
