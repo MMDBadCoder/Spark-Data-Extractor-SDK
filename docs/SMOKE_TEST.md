@@ -6,13 +6,13 @@ Run in a nonproduction namespace with known daily Parquet fixtures. Record Spark
 |---|---|---|---|
 | 01 | Launch Jupyter from extracted source root and execute root-level notebook with no explicit session/path/result assignment | Source import subprocess and notebook structure | Pending |
 | 02 | Accept seven inclusive days; reject eight before connection | Validation unit doubles | Pending |
-| 03 | Test AND, OR, startswith, repeated where, projection and invalid predicates | Native Spark Connect Column construction without server; writer doubles | Pending |
+| 03 | Test AND, OR, startswith, repeated where, projection and invalid predicates; reject classic Spark Column | Mocked type-acceptance check plus optional native Spark Connect Column construction without server; writer doubles | Pending |
 | 04 | Missing, bool, zero, negative, excessive limits/file counts print Persian errors | Validation unit doubles | Pending |
 | 05 | Reject planned rows exceeding admin cap; accept suggested larger count | Validation unit doubles | Pending |
 | 06 | Tehran-date path, gzip headers, UTF-8; duplicate name does not overwrite | Writer/path unit doubles | Pending |
 | 07 | Two successful runs create distinct sessions; success/error/timeout cleanup and unusable released client | Lifecycle unit doubles, cannot prove remote release | Pending |
 | 08 | Delay readiness beyond deadline; Persian error, cancel/stop attempt, uncertainty logs, lock held until worker exits | Timeout unit doubles | Pending |
-| 09 | Compare measured rows/file count/bytes/duration and printed download command with output | Manifest/count unit doubles | Pending |
+| 09 | Compare measured rows/file count/bytes/duration and printed download command with output | Manifest/count unit doubles; does not validate native Spark CSV round-trip | Pending |
 | 10 | Download all listed files; reject missing/non-COMPLETE manifest, wrong sizes, unsafe names, existing files; test redirects/HTTP errors | HTTP unit doubles | Pending |
 | 11 | Upload/extract source ZIP in Jupyter browser; run notebook and CLI from source tree | Source import and notebook structure can be checked locally; customer-host test pending | Pending |
 | 12 | Open detailed Persian Markdown guide; validate RTL, code readability, first run/errors/download | Markdown content present; customer-host check remains | Pending |
@@ -49,7 +49,7 @@ Additional live checks:
 - Use empty output, one-column null, empty string, literal `\N`, commas, quotes, embedded newlines, Persian strings, dates/decimals, and any complex types in the real schema. Verify exact CSV count and document null-marker collisions.
 - Exercise coalesce one and repartition many; inspect actual files with maxRecordsPerFile caps. Do not require exactly the requested physical file count.
 - Remove an input date and verify a missing-day error. Preserve existing output before a duplicate run.
-- Stall execution during write/verification; caller returns timeout, no COMPLETE is published later, and a second kernel/process cannot start while worker holds the file lock. Inspect cancellation and remaining remote operations.
+- Stall execution during write/verification; caller returns timeout, no COMPLETE is published later, and a second kernel/process cannot start while worker holds the file lock. Inspect cancellation and remaining remote operations. Manifest publication currently runs synchronously on the caller after worker completion and is outside the configured deadline; exercise a stalled publication separately and track this known timeout boundary.
 - Make session cleanup and manifest publication fail; verify no success claim and original details in protected logs.
 - Measure a representative 100 GB–1 TB/day extraction, elapsed time, resource usage, source scan, and completed-CSV verification overhead. Confirm cluster limits externally.
 - Test WebHDFS redirect host reachability, required simple/delegation authentication, partial downloads, explicit overwrite, and read-only customer configuration.

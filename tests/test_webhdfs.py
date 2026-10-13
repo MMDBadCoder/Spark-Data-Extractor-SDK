@@ -1,17 +1,34 @@
 from types import SimpleNamespace
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 import unittest
 from tempfile import TemporaryDirectory
 from pathlib import Path
+import sys
+from types import ModuleType
 
 from data_extractor.exceptions import ExtractionError
+
+try:
+    import requests as request_library
+except ImportError:
+    # Exercise the WebHDFS boundary without leaking a fake requests module to
+    # unrelated tests in this dependency-limited environment.
+    request_library = ModuleType('requests')
+    class RequestException(Exception):
+        pass
+    request_library.RequestException = RequestException
+    request_library.Timeout = type('Timeout', (RequestException,), {})
+    request_library.ConnectionError = type('ConnectionError', (RequestException,), {})
+    request_library.Session = lambda: Mock()
+
 from data_extractor.webhdfs import WebHDFS
 
 
 def client():
-    value = WebHDFS(SimpleNamespace(webhdfs_base_url='http://namenode:9870',
-        webhdfs_timeout_seconds=3, webhdfs_user='user', webhdfs_token=None))
+    with patch.dict(sys.modules, {'requests': request_library}):
+        value = WebHDFS(SimpleNamespace(webhdfs_base_url='http://namenode:9870',
+            webhdfs_timeout_seconds=3, webhdfs_user='user', webhdfs_token=None))
     value.session = Mock()
     return value
 
@@ -79,6 +96,21 @@ class WebHDFSTests(unittest.TestCase):
         self.assertEqual(calls[2].args, ('DELETE', calls[0].args[1]))
         self.assertEqual(calls[2].kwargs['params']['op'], 'DELETE')
 
+    def test_manifest_upload_network_failure_cleans_temporary_file(self):
+        value = client()
+        redirect = response(307)
+        redirect.headers = {'Location': 'http://datanode:9864/webhdfs/v1/tmp?op=CREATE'}
+        redirect.url = 'http://namenode:9870/webhdfs/v1/tmp'
+        value.session.request.side_effect = [redirect, request_library.Timeout('secret'), response()]
+
+        with self.assertRaises(ExtractionError) as caught:
+            value.create_json('/result/_extract_manifest.json', {'status': 'COMPLETE'})
+
+        self.assertNotIn('secret', str(caught.exception))
+        calls = value.session.request.call_args_list
+        self.assertEqual(len(calls), 3)
+        self.assertEqual(calls[2].kwargs['params']['op'], 'DELETE')
+
     def test_manifest_rename_false_is_failure_and_cleans_temporary_file(self):
         value = client()
         redirect = response(307)
@@ -94,10 +126,41 @@ class WebHDFSTests(unittest.TestCase):
         self.assertEqual(calls[2].kwargs['params']['op'], 'RENAME')
         self.assertEqual(calls[3].kwargs['params']['op'], 'DELETE')
 
-    def test_network_timeout_is_translated(self):
-        import requests
+    def test_manifest_rename_network_failure_is_translated_and_cleans_temporary_file(self):
         value = client()
-        value.session.request.side_effect = requests.Timeout('secret URL')
+        redirect = response(307)
+        redirect.headers = {'Location': 'http://datanode:9864/webhdfs/v1/tmp?op=CREATE'}
+        redirect.url = 'http://namenode:9870/webhdfs/v1/tmp'
+        value.session.request.side_effect = [redirect, response(201), request_library.Timeout('secret'), response()]
+
+        with self.assertRaises(ExtractionError) as caught:
+            value.create_json('/result/_extract_manifest.json', {'status': 'COMPLETE'})
+
+        self.assertNotIn('secret', str(caught.exception))
+        calls = value.session.request.call_args_list
+        self.assertEqual(calls[2].kwargs['params']['op'], 'RENAME')
+        self.assertEqual(calls[3].kwargs['params']['op'], 'DELETE')
+
+    def test_download_stream_network_failure_removes_partial_file(self):
+        with TemporaryDirectory() as directory:
+            value = client()
+            stream = response()
+            value.session.request.return_value = stream
+            stream.iter_content.return_value = iter([b'partial'])
+            def chunks(*, chunk_size):
+                yield b'partial'
+                raise request_library.ConnectionError('secret')
+            stream.iter_content.side_effect = chunks
+            target = Path(directory) / 'part.csv.gz'
+            with self.assertRaises(ExtractionError) as caught:
+                value.download('/part.csv.gz', target, 100)
+            self.assertNotIn('secret', str(caught.exception))
+            self.assertFalse(target.exists())
+            self.assertEqual(list(Path(directory).iterdir()), [])
+
+    def test_network_timeout_is_translated(self):
+        value = client()
+        value.session.request.side_effect = request_library.Timeout('secret URL')
         with self.assertRaises(ExtractionError) as caught:
             value.exists('/result')
         self.assertNotIn('secret', str(caught.exception))

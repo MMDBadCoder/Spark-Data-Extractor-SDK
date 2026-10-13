@@ -112,3 +112,26 @@ class WriterTests(unittest.TestCase):
             self.run_writer()
         self.assertEqual(caught.exception.code, 'WRITE_FAILED')
         self.spark.read.schema.assert_not_called()
+
+    def test_source_read_failure_is_query_failed(self):
+        self.spark.read.parquet.side_effect = RuntimeError('source read failed')
+        with self.assertRaises(ExtractionError) as caught:
+            self.run_writer()
+        self.assertEqual(caught.exception.code, 'QUERY_FAILED')
+        self.planned.write.mode.assert_not_called()
+
+    def test_spark_write_failure_is_write_failed(self):
+        self.planned.write.mode.return_value.options.return_value.csv.side_effect = RuntimeError('write failed')
+        with self.assertRaises(ExtractionError) as caught:
+            self.run_writer()
+        self.assertEqual(caught.exception.code, 'WRITE_FAILED')
+
+    def test_output_inspection_failure_is_write_failed(self):
+        self.hdfs.list_status.side_effect = [
+            [{'type': 'FILE', 'pathSuffix': 'source.parquet'}],
+            [{'type': 'FILE', 'pathSuffix': 'source.parquet'}],
+            RuntimeError('inspection failed'),
+        ]
+        with self.assertRaises(ExtractionError) as caught:
+            self.run_writer()
+        self.assertEqual(caught.exception.code, 'WRITE_FAILED')

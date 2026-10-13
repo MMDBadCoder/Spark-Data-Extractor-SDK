@@ -43,18 +43,11 @@ def validate_columns(columns):
 
 
 def validate_predicate(predicate):
-    classes = []
-    try:
-        from pyspark.sql import Column
-        classes.append(Column)
-    except ImportError:
-        pass
     try:
         from pyspark.sql.connect.column import Column as ConnectColumn
-        classes.append(ConnectColumn)
-    except ImportError:
-        pass
-    if not classes or not isinstance(predicate, tuple(classes)):
+    except ImportError as exc:
+        raise ExtractionError('INVALID_FILTER') from exc
+    if not isinstance(predicate, ConnectColumn):
         raise ExtractionError('INVALID_FILTER')
     return predicate
 

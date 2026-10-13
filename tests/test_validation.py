@@ -1,6 +1,8 @@
 import unittest
 import os
 import tempfile
+import sys
+from types import ModuleType
 from datetime import date
 from pathlib import Path
 from unittest.mock import patch
@@ -58,3 +60,15 @@ class ValidationTests(unittest.TestCase):
                 q.select(*columns)
         with self.assertRaises(ExtractionError):
             q.where('a > 1')
+
+    def test_predicate_accepts_connect_column_and_rejects_classic_column(self):
+        connect = ModuleType('pyspark.sql.connect.column')
+        connect.Column = type('ConnectColumn', (), {})
+        classic = type('ClassicColumn', (), {})
+        with patch.dict(sys.modules, {'pyspark.sql.connect.column': connect}):
+            from data_extractor.validation import validate_predicate
+            accepted = validate_predicate(connect.Column())
+            self.assertIsInstance(accepted, connect.Column)
+            with self.assertRaises(ExtractionError) as caught:
+                validate_predicate(classic())
+        self.assertEqual(caught.exception.code, 'INVALID_FILTER')

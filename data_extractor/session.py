@@ -4,11 +4,13 @@ import logging
 LOG = logging.getLogger('data_extractor')
 
 
-def create_session(config, name):
+def create_session(config, client_execution_id=None):
     from pyspark.sql import SparkSession
-    # Spark 3.4.4 supports remote(...).appName(...).getOrCreate(); this Connect
-    # builder creates a new Connect session instead of reusing classic Spark.
-    return SparkSession.builder.remote(config.connect_url).appName(name).getOrCreate()
+    # Spark 3.4.4 Connect builder supports remote(url).getOrCreate(). It does
+    # not expose appName here; execution_id is a client-side correlation ID.
+    if client_execution_id:
+        LOG.info('event=session_create client_correlation_id=%s', client_execution_id)
+    return SparkSession.builder.remote(config.connect_url).getOrCreate()
 
 
 def ready(session):

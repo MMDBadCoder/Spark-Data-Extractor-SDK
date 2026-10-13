@@ -29,7 +29,10 @@ def write_and_verify(session, spec, config, webhdfs, output_path, checkpoint):
     emit('READING')
     paths = input_paths(spec, config, webhdfs)
     checkpoint()
-    frame = session.read.parquet(*paths)
+    try:
+        frame = session.read.parquet(*paths)
+    except Exception as exc:
+        raise ExtractionError('QUERY_FAILED') from exc
     emit('FILTERING')
     try:
         for predicate in spec.predicates:
@@ -59,23 +62,38 @@ def write_and_verify(session, spec, config, webhdfs, output_path, checkpoint):
     checkpoint()
     emit('WRITING')
     uri = config.hdfs_uri.rstrip('/') + output_path
-    planned.write.mode('errorifexists').options(**CSV_OPTIONS, maxRecordsPerFile=str(config.max_records_per_file)).csv(uri)
+    try:
+        planned.write.mode('errorifexists').options(
+            **CSV_OPTIONS,
+            maxRecordsPerFile=str(config.max_records_per_file),
+        ).csv(uri)
+    except Exception as exc:
+        raise ExtractionError('WRITE_FAILED') from exc
     checkpoint()
     emit('INSPECTING')
-    entries = webhdfs.list_status(output_path)
-    files = sorted([{'name': x['pathSuffix'], 'size_bytes': x['length']} for x in entries
-                    if x.get('type') == 'FILE' and x['pathSuffix'].startswith('part-')
-                    and x['pathSuffix'].endswith('.csv.gz')], key=lambda x: x['name'])
-    if not files:
-        # Spark normally writes a header file for an empty result. A missing
-        # part is ambiguous; never mark it complete on an inferred zero count.
-        raise ExtractionError('WRITE_FAILED')
-    emit('VERIFYING')
-    from pyspark.sql.types import StructType, StructField, StringType
-    schema = StructType([StructField(c, StringType(), True) for c in columns])
-    read_options = {k: v for k, v in CSV_OPTIONS.items() if k not in ('compression', 'quoteAll')}
-    read_options.update(multiLine='true', mode='FAILFAST', enforceSchema='false')
-    verified = session.read.schema(schema).options(**read_options).csv([uri + '/' + f['name'] for f in files]).count()
+    try:
+        entries = webhdfs.list_status(output_path)
+        files = sorted(
+            [{'name': x['pathSuffix'], 'size_bytes': x['length']} for x in entries
+             if x.get('type') == 'FILE' and x['pathSuffix'].startswith('part-')
+             and x['pathSuffix'].endswith('.csv.gz')],
+            key=lambda x: x['name'],
+        )
+        if not files:
+            # A missing part is ambiguous; never infer a verified empty result.
+            raise ExtractionError('WRITE_FAILED')
+        emit('VERIFYING')
+        from pyspark.sql.types import StructType, StructField, StringType
+        schema = StructType([StructField(c, StringType(), True) for c in columns])
+        read_options = {k: v for k, v in CSV_OPTIONS.items() if k not in ('compression', 'quoteAll')}
+        read_options.update(multiLine='true', mode='FAILFAST', enforceSchema='false')
+        verified = session.read.schema(schema).options(**read_options).csv(
+            [uri + '/' + f['name'] for f in files]
+        ).count()
+    except ExtractionError:
+        raise
+    except Exception as exc:
+        raise ExtractionError('WRITE_FAILED') from exc
     checkpoint()
     if not isinstance(verified, int) or verified < 0 or verified > spec.row_limit:
         raise ExtractionError('WRITE_FAILED')

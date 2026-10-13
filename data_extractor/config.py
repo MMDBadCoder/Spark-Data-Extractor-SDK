@@ -71,6 +71,9 @@ def _validate(config, downloader):
             _fail(field)
     if config.max_days > 7 or config.max_limit > 1_000_000_000:
         _fail('query limits')
+    if (not isinstance(config.session_prefix, str) or not config.session_prefix or
+            not all(c.isalnum() or c in '_-' for c in config.session_prefix)):
+        _fail('session_prefix')
     for field in ('connect_timeout_seconds','execution_timeout_seconds','webhdfs_timeout_seconds','target_compressed_mb'):
         value = getattr(config, field)
         if field == 'target_compressed_mb' and value is None:
@@ -100,8 +103,6 @@ def _validate(config, downloader):
                 _fail(field)
         except ValueError:
             _fail(field)
-    if not isinstance(config.session_prefix, str) or not config.session_prefix or not all(c.isalnum() or c in '_-' for c in config.session_prefix):
-        _fail('session_prefix')
     if config.timezone != 'Asia/Tehran':
         _fail('timezone')
     try:
@@ -120,7 +121,10 @@ def _validate(config, downloader):
 
 
 def load_config(path=None, downloader=False):
-    import yaml
+    try:
+        import yaml
+    except ImportError as exc:
+        raise ExtractionError('CONFIG_ERROR', 'وابستگی خواندن تنظیمات در دسترس نیست؛ محیط نصب را بررسی کنید.') from exc
     try:
         defaults = yaml.safe_load(files('data_extractor').joinpath('resources/defaults.yaml').read_text(encoding='utf-8'))
         values = _flatten(defaults)

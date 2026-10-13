@@ -5,13 +5,16 @@ from pathlib import Path
 from urllib.parse import quote, urljoin
 from uuid import uuid4
 
-import requests
-
 from .exceptions import ExtractionError
 
 
 class WebHDFS:
     def __init__(self, config):
+        try:
+            import requests
+        except ImportError as exc:
+            raise ExtractionError('WEBHDFS') from exc
+        self._requests = requests
         self.config = config
         self.session = requests.Session()
 
@@ -39,7 +42,7 @@ class WebHDFS:
         try:
             return self.session.request(method, base + quote(path, safe='/'), params=params,
                                         timeout=self.config.webhdfs_timeout_seconds, **kwargs)
-        except requests.RequestException:
+        except self._requests.RequestException:
             raise ExtractionError('WEBHDFS', 'ارتباط با ذخیره‌سازی برقرار نشد.') from None
 
     @staticmethod
@@ -101,7 +104,7 @@ class WebHDFS:
                     try:
                         uploaded = self.session.request('PUT', urljoin(response.url, location), data=payload,
                                                         timeout=self.config.webhdfs_timeout_seconds)
-                    except requests.RequestException:
+                    except self._requests.RequestException:
                         raise ExtractionError('WEBHDFS', 'نوشتن فایل تأیید نتیجه ناموفق بود.') from None
                     try:
                         self._check(uploaded)
@@ -119,7 +122,7 @@ class WebHDFS:
                     raise ExtractionError('WEBHDFS', 'انتشار فایل تأیید نتیجه ناموفق بود.')
             finally:
                 renamed.close()
-        except (ValueError, requests.RequestException):
+        except (ValueError, self._requests.RequestException):
             raise ExtractionError('WEBHDFS', 'نوشتن فایل تأیید نتیجه ناموفق بود.') from None
         finally:
             try:
@@ -154,7 +157,7 @@ class WebHDFS:
                 # Atomic exclusive publication, including a concurrent downloader race.
                 os.link(temporary, target)
                 temporary.unlink()
-        except (OSError, requests.RequestException):
+        except (OSError, self._requests.RequestException):
             raise ExtractionError('DOWNLOAD', 'دریافت فایل ناموفق بود؛ دسترسی و فضای دیسک را بررسی کنید.') from None
         finally:
             if response is not None:

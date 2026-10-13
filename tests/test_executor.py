@@ -5,7 +5,7 @@ import time
 import unittest
 from contextlib import ExitStack, redirect_stdout
 from pathlib import Path
-from types import SimpleNamespace
+from types import ModuleType, SimpleNamespace
 from unittest.mock import Mock, patch
 
 from data_extractor import executor, session
@@ -39,6 +39,7 @@ class ExecutorTests(unittest.TestCase):
                              connect_timeout_seconds=.06, execution_timeout_seconds=.15)
         self.spec = SimpleNamespace(name='search')
         self.sessions = []
+        self.production_create_session = session.create_session
         self.client = Mock()
         self.client.exists.return_value = False
         self.client.__enter__ = Mock(return_value=self.client)
@@ -51,20 +52,24 @@ class ExecutorTests(unittest.TestCase):
         self.stack.enter_context(patch.object(session, 'create_session', side_effect=self.new_session))
         self.writer = self.stack.enter_context(patch.object(executor, 'write_and_verify', return_value=self.measured))
 
-    def test_connect_builder_uses_remote_app_name_and_get_or_create(self):
+    def test_production_session_factory_uses_supported_connect_builder(self):
         terminal = Mock(return_value='fresh')
-        app_name = Mock(return_value=SimpleNamespace(getOrCreate=terminal))
-        remote = Mock(return_value=SimpleNamespace(appName=app_name))
+        remote = Mock(return_value=SimpleNamespace(getOrCreate=terminal))
         builder = SimpleNamespace(remote=remote)
-        pyspark = SimpleNamespace()
-        sql = SimpleNamespace(SparkSession=SimpleNamespace(builder=builder))
+        sql = ModuleType('pyspark.sql')
+        sql.SparkSession = SimpleNamespace(builder=builder)
+        pyspark = ModuleType('pyspark')
         with patch.dict('sys.modules', {'pyspark': pyspark, 'pyspark.sql': sql}):
-            from pyspark.sql import SparkSession
-            result = SparkSession.builder.remote('sc://spark:15002').appName('extract_demo').getOrCreate()
+            result = self.production_create_session(Config(connect_url='sc://spark:15002'), 'client-id')
         self.assertEqual(result, 'fresh')
         remote.assert_called_once_with('sc://spark:15002')
-        app_name.assert_called_once_with('extract_demo')
         terminal.assert_called_once_with()
+
+    def test_cancel_logs_unsupported_api(self):
+        with patch.object(session.LOG, 'warning') as warning:
+            session.cancel(object())
+        warning.assert_called_once()
+        self.assertIn('cancellation_unsupported', warning.call_args.args[0])
 
     def new_session(self, *_):
         value = FakeSession()

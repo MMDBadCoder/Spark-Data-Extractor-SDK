@@ -78,7 +78,8 @@ class _Lease:
 
 
 class _State:
-    def __init__(self):
+    def __init__(self, query_name):
+        self.query_name = query_name
         self.session = None
         self.ready = threading.Event()
         self.done = threading.Event()
@@ -111,11 +112,14 @@ class _State:
             self.stop_done.wait()
 
 
-def _worker(state, lease, config, name, operation):
+def _worker(state, lease, config, execution_id, operation):
     try:
         state.checkpoint()
         emit('CONNECTING')
-        state.session = sessions.create_session(config, name)
+        # Spark 3.4.4's Connect builder does not expose appName. Keep the
+        # configured prefix and query identity in client-side correlation logs.
+        correlation_id = f'{config.session_prefix}_{state.query_name}_{execution_id}'
+        state.session = sessions.create_session(config, correlation_id)
         state.checkpoint()
         sessions.ready(state.session)
         state.checkpoint()
@@ -146,12 +150,11 @@ def _execute(config, name, operation, result_handler):
     except OSError as exc:
         raise ExtractionError('CONFIG_ERROR') from exc
     emit('VALIDATING')
-    state = _State()
+    state = _State(name)
     start = time.monotonic()
     execution_id = uuid4().hex[:12]
-    name = f'{config.session_prefix}_{name}_{execution_id}'
     lease = _Lease(config)
-    thread = threading.Thread(target=_worker, args=(state, lease, config, name, operation), daemon=True)
+    thread = threading.Thread(target=_worker, args=(state, lease, config, execution_id, operation), daemon=True)
     try:
         thread.start()
     except BaseException:

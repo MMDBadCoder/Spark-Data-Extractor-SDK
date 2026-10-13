@@ -26,6 +26,14 @@ class ConfigTests(unittest.TestCase):
         self.assertEqual(config.max_output_files, 10)
         self.assertEqual(config.max_days, 7)
 
+    def test_session_prefix_from_approved_admin_shape_is_retained(self):
+        config = load_config(self.write(spark={'connect_url': 'sc://spark:15002', 'session_prefix': 'daily_extract'}))
+        self.assertEqual(config.session_prefix, 'daily_extract')
+
+    def test_invalid_session_prefix_is_rejected(self):
+        with self.assertRaises(ExtractionError):
+            load_config(self.write(spark={'connect_url': 'sc://spark:15002', 'session_prefix': 'bad prefix'}))
+
     def test_source_checkout_admin_fallback_and_environment_precedence(self):
         checkout = self.path.parent / 'checkout'
         package = checkout / 'data_extractor'
@@ -51,6 +59,13 @@ class ConfigTests(unittest.TestCase):
             from data_extractor import Query
             with self.assertRaisesRegex(ExtractionError, 'نشانی Spark فعال'):
                 Query('configured')
+
+    def test_query_validates_name_before_loading_configuration(self):
+        with patch('data_extractor.query.load_config', side_effect=AssertionError('config should not load')):
+            with self.assertRaises(ExtractionError) as caught:
+                from data_extractor import Query
+                Query('bad name')
+        self.assertEqual(caught.exception.code, 'INVALID_NAME')
 
     def test_explicit_path_precedes_environment_path(self):
         explicit = self.write(max_output_files=11)
