@@ -1,14 +1,27 @@
 import unittest
 import os
+import tempfile
 from datetime import date
+from pathlib import Path
+from unittest.mock import patch
+import yaml
 from data_extractor import Query, ExtractionError
 from data_extractor.config import Config
 from data_extractor.validation import validate_name, parse_iso_date
 
 
 class ValidationTests(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        self.config_file = Path(self.temp.name) / 'admin.yaml'
+        self.config_file.write_text(yaml.safe_dump({'spark': {'connect_url':'sc://test:15002'}, 'hdfs': {'uri':'hdfs://test'}, 'webhdfs': {'base_url':'https://test'}}))
+        self.env = patch.dict(os.environ, {'DATA_EXTRACTOR_CONFIG': str(self.config_file), 'SPARK_REMOTE': ''}, clear=True)
+        self.env.start()
+        self.addCleanup(self.env.stop)
+
     def test_connect_function_dispatch_enabled(self):
-        self.assertEqual(os.environ.get("SPARK_CONNECT_MODE_ENABLED"), "1")
+        self.assertNotIn("SPARK_CONNECT_MODE_ENABLED", os.environ)
 
     def test_names(self):
         for name in ['', '/tmp', 'a b', '_a', 'a'*65, None]:

@@ -1,10 +1,4 @@
-"""Spark Connect extraction SDK."""
-import os
-
-# This SDK targets Connect exclusively. Enable public SQL function dispatch before
-# customers build native Column expressions; no session is created at import.
-os.environ.setdefault('SPARK_CONNECT_MODE_ENABLED', '1')
-
+"""Spark Connect extraction SDK. Importing it has no Spark side effects."""
 from .query import Query, ColumnInfo
 from .result import Result
 from .exceptions import ExtractionError

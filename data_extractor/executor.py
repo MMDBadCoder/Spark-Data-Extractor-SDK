@@ -117,8 +117,6 @@ def _worker(state, lease, config, name, operation):
         emit('CONNECTING')
         state.session = sessions.create_session(config, name)
         state.checkpoint()
-        sessions.label(state.session, name)
-        state.checkpoint()
         sessions.ready(state.session)
         state.checkpoint()
         state.ready_at = time.monotonic()
@@ -214,7 +212,7 @@ def run_query(spec, config):
             hdfs.create_json(output_path + '/_extract_manifest.json', manifest)
         result = Result(spec.name, execution_id, date, time.monotonic() - start,
                         measured['row_count'], len(measured['files']), measured['total_bytes'],
-                        output_path, f'data-extractor download {spec.name} --date {date} --output ./downloads')
+                        output_path, f'python -m data_extractor.cli download {spec.name} --date {date} --output ./downloads')
         emit('COMPLETE')
         emit('SUMMARY', **asdict(result))
         LOG.info('event=complete execution_id=%s rows=%s files=%s', execution_id, result.row_count, result.file_count)

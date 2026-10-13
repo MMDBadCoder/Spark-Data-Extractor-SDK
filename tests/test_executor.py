@@ -51,6 +51,21 @@ class ExecutorTests(unittest.TestCase):
         self.stack.enter_context(patch.object(session, 'create_session', side_effect=self.new_session))
         self.writer = self.stack.enter_context(patch.object(executor, 'write_and_verify', return_value=self.measured))
 
+    def test_connect_builder_uses_remote_app_name_and_get_or_create(self):
+        terminal = Mock(return_value='fresh')
+        app_name = Mock(return_value=SimpleNamespace(getOrCreate=terminal))
+        remote = Mock(return_value=SimpleNamespace(appName=app_name))
+        builder = SimpleNamespace(remote=remote)
+        pyspark = SimpleNamespace()
+        sql = SimpleNamespace(SparkSession=SimpleNamespace(builder=builder))
+        with patch.dict('sys.modules', {'pyspark': pyspark, 'pyspark.sql': sql}):
+            from pyspark.sql import SparkSession
+            result = SparkSession.builder.remote('sc://spark:15002').appName('extract_demo').getOrCreate()
+        self.assertEqual(result, 'fresh')
+        remote.assert_called_once_with('sc://spark:15002')
+        app_name.assert_called_once_with('extract_demo')
+        terminal.assert_called_once_with()
+
     def new_session(self, *_):
         value = FakeSession()
         self.sessions.append(value)

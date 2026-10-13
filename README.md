@@ -1,80 +1,40 @@
-# Spark Connect Data Extractor
+# Spark Connect Data Extraction SDK
 
-A small Python SDK for a trusted customer using Jupyter: read administrator-configured daily HDFS Parquet, apply native Spark Column filters, and export verified gzip CSV. A Linux CLI downloads completed files through WebHDFS. The approved [PRD](docs/PRD.md) is preserved verbatim.
+A source-only Python SDK for a trusted customer using Jupyter. It reads administrator-configured daily HDFS Parquet data, applies native Spark Connect `Column` filters, and writes verified gzip CSV output. The SDK targets Python 3.10.12 and PySpark 3.4.4 with Hadoop 2.10.2. The approved [PRD](docs/PRD.md) is retained verbatim; source delivery differs from its wheel and Word-guide requirements, as recorded in [status](docs/STATUS.md).
+
+## Jupyter quick start
+
+1. Upload the project ZIP using Jupyter's file browser. If there is no extract menu, use the temporary notebook and Python `zipfile` steps in the [Persian guide](docs/customer_guide_fa.md#اگر-jupyter-دکمهٔ-extract-ندارد-استخراج-با-دفترچهٔ-موقت). Open the extracted project root, which contains `admin.yaml`, `data_extractor/`, `customer_example.ipynb`, and `docs/`.
+2. An authorized administrator can edit root `admin.yaml` in Jupyter after extraction, or prepare it in the deployed copy beforehand. The version in this repository contains placeholders only. The separate downloader uses `examples/downloader.yaml` or `DATA_EXTRACTOR_DOWNLOAD_CONFIG` on the download machine.
+3. Open `customer_example.ipynb` and follow its diagnostic cell. Create `Query(...)` before importing or calling `pyspark.sql.functions.col`, so PySpark 3.4.4 uses the configured Connect URL for native column expressions.
+4. Replace the sample date with one confirmed to exist, then run the first export with a limit of 10 rows and one target file. Filters and column selection can be added after this first run. Keep the final cell open until completion.
+
+## Query shape
 
 ```python
-from pyspark.sql.functions import col
 from data_extractor import Query
-
-query = Query("customer_search")
-query.between("2026-01-01", "2026-01-07")
-columns = query.show_columns()  # inspect the Persian name/type table first
-query.where((col("customer_id") > 10) & col("status").startswith("ready"))
-query.select("customer_id", "status")
-query.limit(1_000_000)
-query.output_files(4)
-query.run()
+query = Query("customer_search")  # reads admin.yaml and configures SPARK_REMOTE
+from pyspark.sql.functions import col
+(query.between("2026-01-01", "2026-01-07")
+ .where((col("customer_id") > 10) & col("status").startswith("ready"))
+ .select("customer_id", "status")
+ .limit(1_000_000)
+ .output_files(4)
+ .run())
 ```
 
-Use a fresh Connect-only kernel; importing `data_extractor` enables Connect mode before `col()` is evaluated. Do not mix this SDK with an already active classic Spark session. `.show_columns()` follows `.between(...)`, prints the fixed source's Persian column/type table, and returns immutable metadata. It is a schema-only discovery call: it needs dates, but no `.limit()` or `.output_files()`, and does not filter, project, count rows, export, or create a manifest. Use the real column names it reports in subsequent filters and selection. `run()` prints Persian progress and a completion summary. Dates are inclusive, at most seven days; every input day must exist. `limit` and `output_files` are required for export. Multiple `where` calls combine with AND. Rows selected by `limit` are nondeterministic.
+`run()` prints Persian progress and a completion summary. Dates are inclusive and limited to seven days; all input days must exist. Multiple `where()` calls combine with AND. Use Python `&`, `|`, and `~` with parentheses. Output files are a target partition count, not a guarantee of exact physical files. Row selection is nondeterministic without ordering. Use a fresh kernel for a new admin configuration. If a conflicting `SPARK_REMOTE` is already set, reset the kernel and check configuration.
 
-## Quick start from the source ZIP
+## Download completed output
 
-1. Upload `Spark-Data-Extractor-SDK.zip` to the Jupyter host and extract it. Open the extracted project root—the folder containing `pyproject.toml`, `admin.yaml`, `data_extractor/`, and `customer_example.ipynb`—as the Jupyter working directory.
-2. The administrator edits that root `admin.yaml` in the deployed copy and gives the notebook kernel read access. The checked-in file has `null` endpoints; do not share live endpoints or credentials in the distributed ZIP. The root file is a source-checkout convenience. For production, prefer a protected external file selected with `DATA_EXTRACTOR_CONFIG`.
-3. Start Jupyter with the extracted project root as its working directory, using a kernel with the required SDK dependencies already installed. Open the root-level `customer_example.ipynb` and run its import cell: `from data_extractor import Query`. The package imports directly from that root without an editable install or `PYTHONPATH` setting.
-
-The ZIP's `admin.yaml` starts with `null` endpoints and will not connect until an administrator configures it. Never put live endpoints or credentials into a ZIP distributed to customers.
-
-## Install and configure
-
-Python 3.10+ is required. The optional Connect extra provisionally pins PySpark 4.0.1; the deployed Spark minor version is unknown. An administrator must match and validate the client and its transitive dependencies against the real endpoint before deployment. The pin is a target assumption, not a compatibility certification.
+On a separately configured Linux download machine:
 
 ```bash
-python -m pip install -e '.[connect,dev]'
-python -m build
-python -m pip install 'dist/data_extractor-0.2.0-py3-none-any.whl[connect]'
-export DATA_EXTRACTOR_CONFIG=/protected/admin.yaml
+python -m data_extractor.cli download customer_search --date 2026-01-07 --output ./downloads
 ```
 
-An administrator prepares a protected YAML config and preconfigures the notebook. Configuration selection is: explicit `--config`/API path, then the runtime-specific environment variable, then the repository-root `admin.yaml` when running from a source checkout, then packaged defaults. The root `admin.yaml` is a placeholder; installed wheels never inspect the current directory. Downloader settings stay separate under `DATA_EXTRACTOR_DOWNLOAD_CONFIG`. The SDK protects its documented API, not an isolated Python runtime against a malicious user.
+Run from the project root or set `PYTHONPATH` to that root. Supply downloader-only settings using `examples/downloader.yaml` via `DATA_EXTRACTOR_DOWNLOAD_CONFIG`. Use the Tehran execution date reported by the notebook. The CLI requires a COMPLETE manifest and verifies file sizes. It does not require Spark dependencies to be configured for the downloader.
 
-For offline installation, on a connected machine with the same Python/platform, collect the wheel plus dependencies:
+## Validation
 
-```bash
-python -m pip download --dest wheelhouse 'dist/data_extractor-0.2.0-py3-none-any.whl[connect]'
-# Transfer wheelhouse to Jupyter, then:
-python -m pip install --no-index --find-links wheelhouse 'data-extractor[connect]==0.2.0'
-```
-
-Copy the [customer notebook](customer_example.ipynb) and [Persian guide](docs/customer_guide_fa.docx) to the customer environment. The wheel includes YAML resources; notebook and guide are source-delivery artifacts.
-
-## Primary guides
-
-- [Persian customer guide (Markdown)](docs/customer_guide_fa.md) and [Persian customer guide (Word)](docs/customer_guide_fa.docx)
-- [English service-owner and developer operations guide](docs/owner_guide_en.md)
-
-## Download
-
-Configure the download machine independently with [examples/downloader.yaml](examples/downloader.yaml):
-
-```bash
-export DATA_EXTRACTOR_DOWNLOAD_CONFIG=/protected/downloader.yaml
-data-extractor download customer_search --date 2026-01-07 --output ./downloads
-```
-
-Use the **Tehran execution date printed by the SDK**, not an input date. The CLI requires a COMPLETE manifest and verifies downloaded sizes. It uses temporary files and atomic renames, refuses existing local files unless `--overwrite` is supplied, and stores files under `downloads/customer_search_2026-01-07/`. WebHDFS redirects must be reachable. Basic `user.name` or delegation-token authentication is supported; Kerberos/proxy environments need an adapter before deployment.
-
-## Output and limits
-
-Output is `<output_base>/result/yyyy/MM/dd/<name>/`, with `part-*.csv.gz`, headers, UTF-8, quoteAll and `\N` null marker, and double-quote quote/escape characters. Requested files are target partitions: empty partitions or row caps change actual file counts. Compression size is advisory. The verified row count rereads the bounded completed CSV using an explicit all-string schema with FAILFAST and multiline parsing, adding an output scan. A row limit does not bound source scan cost.
-
-Each run creates a fresh Connect session. Deadlines return a Persian timeout and attempt cancellation/stop; they cannot prove remote cleanup. A blocked worker retains the job lock until it exits, so another run may be refused and a notebook kernel restart may be required. Partial files may remain and must be cleaned by an administrator; they never receive a COMPLETE manifest. Retention is manual.
-
-The execution deadline covers Spark acquisition through output verification and session cleanup. Final manifest publication follows successful verification and uses WebHDFS per-request timeouts; it can add time beyond that deadline. This prototype does not promise a hard wall-clock deadline for the entire `run()` call. Restarting a kernel also cannot prove a remote job stopped; the administrator must inspect the server before resubmitting.
-
-## Validation and delivery
-
-Supporting material: [assessment](docs/ASSESSMENT.md), [design](docs/DESIGN.md), [status](docs/STATUS.md), [cluster smoke checklist](docs/SMOKE_TEST.md), and [repository notes](docs/REPOSITORY.md). Local mocked tests are not proof of live Spark/HDFS behavior. No open-source license is currently selected.
-
-Run tests with `python -m unittest discover -s tests -v` after installing dependencies. The native Column test uses the optional Connect client and skips when it is absent. It constructs real expressions without a live Spark endpoint.
+Run `python -m unittest discover -s tests -v` in an environment with the SDK runtime dependencies installed. Unit tests use mocks and local files; they do not establish live Spark, HDFS, WebHDFS, cancellation, or production-scale behavior. Complete the gates in [SMOKE_TEST.md](docs/SMOKE_TEST.md) before deployment. Current findings and known limitations are in [STATUS.md](docs/STATUS.md).

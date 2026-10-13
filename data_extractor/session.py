@@ -1,4 +1,4 @@
-"""Fresh Connect sessions; no implicit getOrCreate/session reuse."""
+"""Create and release fresh Spark Connect sessions using the Spark 3.4 API."""
 import logging
 
 LOG = logging.getLogger('data_extractor')
@@ -6,19 +6,9 @@ LOG = logging.getLogger('data_extractor')
 
 def create_session(config, name):
     from pyspark.sql import SparkSession
-    # Assign the returned handle before performing optional server naming RPCs,
-    # so a timeout during naming can still attempt release of that session.
-    return SparkSession.builder.remote(config.connect_url).create()
-
-
-def label(session, name):
-    try:
-        if hasattr(session, 'addTag'):
-            session.addTag(name)
-        if hasattr(session, 'conf'):
-            session.conf.set('spark.app.name', name)
-    except Exception:
-        LOG.warning('event=session_naming_unsupported label=%s', name, exc_info=True)
+    # Spark 3.4.4 supports remote(...).appName(...).getOrCreate(); this Connect
+    # builder creates a new Connect session instead of reusing classic Spark.
+    return SparkSession.builder.remote(config.connect_url).appName(name).getOrCreate()
 
 
 def ready(session):
@@ -28,10 +18,14 @@ def ready(session):
 
 def cancel(session):
     if session is not None:
+        interrupt = getattr(session, 'interruptAll', None)
+        if interrupt is None:
+            LOG.warning('event=cancellation_unsupported remote_cleanup=unknown')
+            return
         try:
-            session.interruptAll()
-        except Exception:
-            LOG.exception('event=cancellation_failed remote_cleanup=unknown')
+            interrupt()
+        except Exception as exc:
+            LOG.warning('event=cancellation_failed error_type=%s remote_cleanup=unknown', type(exc).__name__)
 
 
 def release(session):

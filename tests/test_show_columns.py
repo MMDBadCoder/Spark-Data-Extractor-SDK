@@ -38,7 +38,8 @@ class ShowColumnsTests(unittest.TestCase):
         base = Path(self.temp.name)
         self.config = Config(log_file=str(base / 'log'), lock_file=str(base / 'lock'),
                              connect_timeout_seconds=.07, execution_timeout_seconds=.2,
-                             input_base='/data/source', hdfs_uri='hdfs://namenode')
+                             input_base='/data/source', hdfs_uri='hdfs://namenode',
+                             connect_url='sc://test:15002')
         self.query = Query('inspect').between('2026-10-01', '2026-10-02').limit(3).output_files(2)
         self.spark = _Spark()
         self.spark.range = Mock(side_effect=AssertionError('schema discovery must not scan rows'))
@@ -52,11 +53,11 @@ class ShowColumnsTests(unittest.TestCase):
         self.addCleanup(self.stack.close)
         self.stack.enter_context(redirect_stdout(io.StringIO()))
         self.stack.enter_context(patch('data_extractor.query.load_config', return_value=self.config))
+        self.stack.enter_context(patch.dict('os.environ', {'SPARK_REMOTE': 'sc://test:15002'}))
         self.stack.enter_context(patch.object(executor, 'WebHDFS', return_value=self.client))
         self.stack.enter_context(patch.object(session, 'release', side_effect=lambda _: setattr(self.session, 'stopped', True)))
         self.stack.enter_context(patch.object(session, 'create_session', return_value=self.session))
         self.stack.enter_context(patch.object(session, 'ready'))
-        self.stack.enter_context(patch.object(session, 'label'))
         self.stack.enter_context(patch.object(session, 'cancel', side_effect=lambda s: s.cancelled.set()))
         self.writer = self.stack.enter_context(patch.object(executor, 'write_and_verify'))
 

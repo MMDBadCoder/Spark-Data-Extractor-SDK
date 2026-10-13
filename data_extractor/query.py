@@ -16,6 +16,17 @@ class Query:
     """Fluent customer query builder. Multiple where calls are ANDed by execution."""
 
     def __init__(self, name):
+        try:
+            config = load_config()
+            import os
+            configured = config.connect_url
+            existing = os.environ.get('SPARK_REMOTE')
+            if existing and existing != configured:
+                raise ExtractionError('CONFIG_ERROR', 'نشانی Spark فعال با تنظیم مدیر یکسان نیست؛ هستهٔ دفترچه را بازنشانی و تنظیمات را بررسی کنید.')
+            os.environ['SPARK_REMOTE'] = configured
+        except ExtractionError as exc:
+            print(str(exc), flush=True)
+            raise
         self._name = validate_name(name)
         self._start = self._end = None
         self._predicates = []
@@ -53,6 +64,9 @@ class Query:
     def run(self):
         try:
             config = load_config()
+            import os
+            if os.environ.get('SPARK_REMOTE') != config.connect_url:
+                raise ExtractionError('CONFIG_ERROR', 'نشانی Spark فعال با تنظیم مدیر یکسان نیست؛ هستهٔ دفترچه را بازنشانی و تنظیمات را بررسی کنید.')
             spec = self._validated_spec(config)
             from .executor import run_query
             return run_query(spec, config)

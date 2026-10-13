@@ -1,6 +1,0 @@
-include AGENTS.md
-include build_customer_docs.py
-recursive-include docs *.md *.docx
-recursive-include examples *.yaml
-include admin.yaml
-include customer_example.ipynb

@@ -129,11 +129,9 @@ def load_config(path=None, downloader=False):
         if selected:
             values.update(_flatten(yaml.safe_load(Path(selected).read_text(encoding='utf-8'))))
         elif not downloader:
-            # A checkout may carry its administrator file beside pyproject.toml.
-            # Installed wheels use packaged defaults and must not inspect cwd.
+            # A source ZIP may carry its administrator file beside this package.
             checkout_admin = Path(__file__).resolve().parent.parent / 'admin.yaml'
-            if (checkout_admin.is_file() and
-                    (checkout_admin.parent / 'pyproject.toml').is_file()):
+            if checkout_admin.is_file():
                 values.update(_flatten(yaml.safe_load(checkout_admin.read_text(encoding='utf-8'))))
         return _validate(Config(**values), downloader)
     except ExtractionError:

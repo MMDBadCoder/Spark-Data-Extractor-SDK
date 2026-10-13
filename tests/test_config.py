@@ -30,7 +30,6 @@ class ConfigTests(unittest.TestCase):
         checkout = self.path.parent / 'checkout'
         package = checkout / 'data_extractor'
         package.mkdir(parents=True)
-        (checkout / 'pyproject.toml').write_text('[project]\n')
         admin = checkout / 'admin.yaml'
         admin.write_text(yaml.safe_dump(dict(spark={'connect_url':'sc://checkout:15002'}, hdfs={'uri':'hdfs://checkout'}, webhdfs={'base_url':'https://checkout'})))
         with patch.object(config_module, '__file__', str(package / 'config.py')), patch.dict(os.environ, {}, clear=True):
@@ -38,6 +37,20 @@ class ConfigTests(unittest.TestCase):
             env = self.write(connect_url='sc://environment:15002')
             with patch.dict(os.environ, {'DATA_EXTRACTOR_CONFIG': str(env)}):
                 self.assertEqual(load_config().connect_url, 'sc://environment:15002')
+
+    def test_query_initializes_connect_remote_before_column_import(self):
+        config_file = self.write()
+        with patch.dict(os.environ, {'DATA_EXTRACTOR_CONFIG': str(config_file), 'SPARK_REMOTE': ''}, clear=True):
+            from data_extractor import Query
+            Query('configured')
+            self.assertEqual(os.environ['SPARK_REMOTE'], 'sc://spark:15002')
+
+    def test_query_rejects_conflicting_connect_remote(self):
+        config_file = self.write()
+        with patch.dict(os.environ, {'DATA_EXTRACTOR_CONFIG': str(config_file), 'SPARK_REMOTE': 'sc://other:15002'}, clear=True):
+            from data_extractor import Query
+            with self.assertRaisesRegex(ExtractionError, 'نشانی Spark فعال'):
+                Query('configured')
 
     def test_explicit_path_precedes_environment_path(self):
         explicit = self.write(max_output_files=11)

@@ -6,7 +6,7 @@ Run in a nonproduction namespace with known daily Parquet fixtures. Record Spark
 |---|---|---|---|
 | 01 | Launch Jupyter from extracted source root and execute root-level notebook with no explicit session/path/result assignment | Source import subprocess and notebook structure | Pending |
 | 02 | Accept seven inclusive days; reject eight before connection | Validation unit doubles | Pending |
-| 03 | Test AND, OR, startswith, repeated where, projection and invalid predicates | Real 4.0.1 native Column construction without server; writer doubles | Pending |
+| 03 | Test AND, OR, startswith, repeated where, projection and invalid predicates | Native Spark Connect Column construction without server; writer doubles | Pending |
 | 04 | Missing, bool, zero, negative, excessive limits/file counts print Persian errors | Validation unit doubles | Pending |
 | 05 | Reject planned rows exceeding admin cap; accept suggested larger count | Validation unit doubles | Pending |
 | 06 | Tehran-date path, gzip headers, UTF-8; duplicate name does not overwrite | Writer/path unit doubles | Pending |
@@ -14,8 +14,8 @@ Run in a nonproduction namespace with known daily Parquet fixtures. Record Spark
 | 08 | Delay readiness beyond deadline; Persian error, cancel/stop attempt, uncertainty logs, lock held until worker exits | Timeout unit doubles | Pending |
 | 09 | Compare measured rows/file count/bytes/duration and printed download command with output | Manifest/count unit doubles | Pending |
 | 10 | Download all listed files; reject missing/non-COMPLETE manifest, wrong sizes, unsafe names, existing files; test redirects/HTTP errors | HTTP unit doubles | Pending |
-| 11 | Build wheel, inspect resources; install offline using complete platform-matched wheelhouse and run notebook/CLI | Local no-index/no-deps wheel install and resource/CLI smoke passed | Pending |
-| 12 | Open Persian Word guide; validate RTL, code readability, first run/errors/download | Two rendered pages visually inspected; customer-host check remains | Pending |
+| 11 | Upload/extract source ZIP in Jupyter browser; run notebook and CLI from source tree | Source import and notebook structure can be checked locally; customer-host test pending | Pending |
+| 12 | Open detailed Persian Markdown guide; validate RTL, code readability, first run/errors/download | Markdown content present; customer-host check remains | Pending |
 
 ## Local HTTP integration evidence (no Spark cluster)
 
@@ -37,15 +37,12 @@ This provides full SDK/HTTP/CLI wiring coverage with simulated Spark behavior;
 it does not prove PySpark serialization, Spark Connect behavior, Parquet reads,
 or cluster execution.
 
-Run locally with:
-
-```sh
-PYTHONPATH=.:.test-deps python -m pytest -q
-```
-
-The current run passed 37 tests and 43 subtests, including 3 local-HTTP tests.
-These results are local protocol-integration evidence only; all live status
-entries above remain pending.
+In an environment with the runtime dependencies installed, run locally with
+`python -m unittest discover -s tests -v`. The earlier HTTP integration results
+described above belong to the prior packaging revision. This source-only revision
+has not rerun the HTTP cases here because `requests` is unavailable and the
+sandbox blocks local server sockets. Current runnable checks and limitations are
+recorded in [STATUS.md](STATUS.md); all live status entries above remain pending.
 
 Additional live checks:
 
