@@ -4,7 +4,7 @@ A source-only Python SDK for a trusted customer using Jupyter. It reads administ
 
 ## Jupyter quick start
 
-1. Upload the project ZIP using Jupyter's file browser. If there is no extract menu, use the temporary notebook and Python `zipfile` steps in the [Persian guide](docs/customer_guide_fa.md#اگر-jupyter-دکمهٔ-extract-ندارد-استخراج-با-دفترچهٔ-موقت). Open the extracted project root, which contains `admin.yaml`, `data_extractor/`, `customer_example.ipynb`, and `docs/`.
+1. Upload one project ZIP in the same folder as the temporary notebook (or use Jupyter's Extract Archive menu). The ZIP can keep its original name; no terminal or rename is needed. If Jupyter has no extract menu, use the notebook `zipfile` steps in the [Persian guide](docs/customer_guide_fa.md#اگر-jupyter-دکمهٔ-extract-ندارد-استخراج-با-دفترچهٔ-موقت). Open the extracted project root, which contains `admin.yaml`, `data_extractor/`, `customer_example.ipynb`, and `docs/`.
 2. An authorized administrator can edit root `admin.yaml` in Jupyter after extraction, or prepare it in the deployed copy beforehand. The version in this repository contains placeholders only. The separate downloader uses `examples/downloader.yaml` or `DATA_EXTRACTOR_DOWNLOAD_CONFIG` on the download machine.
 3. Open `customer_example.ipynb` and follow its diagnostic cell. Create `Query(...)` before importing or calling `pyspark.sql.functions.col`, so PySpark 3.4.4 uses the configured Connect URL for native column expressions.
 4. Replace the sample date with one confirmed to exist, then run the first export with a limit of 10 rows and one target file. Filters and column selection can be added after this first run. Keep the final cell open until completion.

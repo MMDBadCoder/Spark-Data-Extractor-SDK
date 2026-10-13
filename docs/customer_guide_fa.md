@@ -6,30 +6,57 @@
 
 ۱. در صفحهٔ Jupyter از بخش Files یا صفحهٔ اصلی فایل‌ها، دکمهٔ Upload را انتخاب کنید.
 ۲. فایل ZIP پروژه را از رایانه انتخاب کنید و صبر کنید تا بارگذاری کامل شود.
-۳. فایل ZIP را در فهرست فایل‌ها پیدا کنید. روی آن کلیک راست کنید یا آن را انتخاب کنید و از منوی File گزینهٔ Extract Archive را بزنید. اگر نسخهٔ Jupyter دکمهٔ استخراج ندارد، از مدیر بخواهید ZIP را برای شما باز کند؛ لازم نیست از ترمینال استفاده کنید.
-۴. پوشهٔ استخراج‌شده را باز کنید. باید فایل `customer_example.ipynb` و پوشه‌های `data_extractor` و `docs` را کنار هم ببینید. فایل `admin.yaml` نیز در ریشهٔ پروژه قرار دارد.
-۵. اگر پوشهٔ پروژه را در مرورگر باز کردید، دفترچه را از همان پوشه باز کنید. اجرای Jupyter از ریشهٔ پروژه باعث می‌شود پایتون پوشهٔ `data_extractor` را پیدا کند.
+۳. فایل ZIP پروژه را در فهرست Files پیدا کنید. اگر دکمهٔ Extract Archive در دسترس است، آن را بزنید.
+۴. اگر دکمهٔ استخراج ندارید، راهنمای دفترچهٔ موقت در پایین همین بخش را اجرا کنید. در آن روش فقط یک ZIP پروژه را در همان پوشهٔ دفترچهٔ موقت نگه دارید؛ نیازی به ترمینال یا تغییر نام فایل نیست.
+۵. پوشهٔ ریشهٔ پروژهٔ استخراج‌شده را باز کنید. باید فایل `customer_example.ipynb` و پوشه‌های `data_extractor` و `docs` را کنار هم ببینید. فایل `admin.yaml` نیز در ریشهٔ پروژه قرار دارد.
+۶. اگر پوشهٔ پروژه را در مرورگر باز کردید، دفترچه را از همان پوشه باز کنید. اجرای Jupyter از ریشهٔ پروژه باعث می‌شود پایتون پوشهٔ `data_extractor` را پیدا کند.
 
 فایل `admin.yaml` داخل بستهٔ نمونه نشانی‌های `null` دارد و به‌تنهایی آمادهٔ اتصال نیست. مدیر باید نسخهٔ استقرار را با تنظیمات واقعی و دسترسی محدود آماده کرده باشد. فایل دارای نشانی یا رمز واقعی را برای دیگران ارسال نکنید.
 
 ### اگر Jupyter دکمهٔ Extract ندارد: استخراج با دفترچهٔ موقت
 
-این روش فقط وقتی لازم است که مدیر اجازهٔ اجرای پایتون در Jupyter را داده باشد. در صفحهٔ فایل‌ها، از منوی New یک Python 3 notebook تازه بسازید. آن را موقتاً با نامی مانند `unpack_project.ipynb` در همان پوشه‌ای بگذارید که فایل ZIP در آن است. در یک سلول بنویسید و اجرا کنید:
+این روش فقط وقتی لازم است که مدیر اجازهٔ اجرای پایتون در Jupyter را داده باشد. در صفحهٔ Files، از منوی New یک Python 3 notebook تازه بسازید. آن را موقتاً در همان پوشه‌ای بگذارید که ZIP پروژه را بارگذاری می‌کنید. ZIP می‌تواند هر نامی داشته باشد، اما هنگام اجرای سلول فقط یک ZIP پروژه باید در این پوشه باشد. اگر هنوز ZIP را بارگذاری نکرده‌اید، آن را از دکمهٔ Upload در همین صفحه بارگذاری کنید و تا پایان بارگذاری صبر کنید. نام ZIP را تغییر ندهید. در یک سلول بنویسید و اجرا کنید:
 
 ```python
 from pathlib import Path
 from zipfile import ZipFile
 
-archive = Path("Spark-Data-Extractor-SDK.zip")  # دقیقاً نام فایلی که در صفحه می‌بینید
-with ZipFile(archive) as zf:
-    zf.extractall(".")  # ZIPهای GitHub معمولاً خودشان پوشهٔ اصلی دارند
-notebook = next(Path(".").glob("Spark-Data-Extractor-SDK*/customer_example.ipynb"), None)
-if notebook is None:
-    raise FileNotFoundError("customer_example.ipynb در ZIP پیدا نشد؛ از مدیر ZIP درست را بگیرید.")
-print("در صفحهٔ Files این پوشه را باز کنید:", notebook.parent)
+workdir = Path.cwd()
+archives = sorted(p for p in workdir.iterdir() if p.is_file() and p.suffix.lower() == ".zip")
+
+if not archives:
+    print("فایل ZIP پروژه پیدا نشد. از دکمهٔ Upload در صفحهٔ Files آن را در همین پوشه بارگذاری کنید، صبر کنید تا بارگذاری کامل شود و سلول را دوباره اجرا کنید.")
+elif len(archives) > 1:
+    print("چند فایل ZIP پیدا شد؛ برای جلوگیری از انتخاب اشتباه، فقط ZIP پروژهٔ موردنظر را در این پوشه نگه دارید و سلول را دوباره اجرا کنید:")
+    for archive in archives:
+        print("-", archive.name)
+else:
+    archive = archives[0]
+    print("ZIP انتخاب‌شده:", archive.name)
+    with ZipFile(archive) as zf:
+        zf.extractall(workdir)  # بستهٔ دریافت‌شده از GitHub
+
+    markers = {"admin.yaml", "customer_example.ipynb"}
+    candidates = []
+    for notebook in workdir.rglob("customer_example.ipynb"):
+        root = notebook.parent
+        if (markers <= {p.name for p in root.iterdir() if p.is_file()}
+                and (root / "data_extractor").is_dir()
+                and (root / "docs").is_dir()):
+            candidates.append(root)
+
+    candidates = sorted(set(candidates))
+    if len(candidates) == 0:
+        print("پوشهٔ پروژه پیدا نشد. در ریشهٔ پروژه باید customer_example.ipynb، admin.yaml، data_extractor/ و docs/ کنار هم باشند. ZIP درست را از مدیر بگیرید.")
+    elif len(candidates) > 1:
+        print("چند پوشهٔ پروژه پیدا شد؛ یکی را حدس نمی‌زنم. پوشهٔ درست را در صفحهٔ Files باز کنید:")
+        for root in candidates:
+            print("-", root)
+    else:
+        print("در صفحهٔ Files این پوشه را باز کنید:", candidates[0])
 ```
 
-اگر نام ZIP متفاوت است، فقط نام فایل را مطابق فهرست Jupyter عوض کنید. سپس به صفحهٔ Files برگردید و دقیقاً همان پوشه‌ای را باز کنید که سلول چاپ کرد؛ ZIPهای دیگر ممکن است نام متفاوتی مثل `Spark-Data-Extractor-SDK-main` داشته باشند. داخل آن `customer_example.ipynb` را اجرا کنید. دفترچهٔ موقت باید در همان پوشهٔ فایل ZIP باشد تا مسیر نسبی درست کار کند. پس از اطمینان از بازشدن پروژه، آن را می‌توانید از منوی فایل حذف کنید. فایل ZIP را تا پایان بررسی پاک نکنید.
+اگر بیش از یک ZIP یا پوشهٔ پروژه دارید، سلول نام‌ها را نشان می‌دهد تا انتخاب اشتباه نشود؛ ZIPهای قدیمی را از پوشهٔ کاری دیگری نگه دارید و فقط ZIP موردنظر را کنار دفترچه قرار دهید. ZIPهای GitHub ممکن است پوشه‌ای مانند `Spark-Data-Extractor-SDK-main` داشته باشند یا فایل‌های پروژه را مستقیم در ریشه قرار دهند؛ سلول پوشهٔ درست را با بررسی فایل‌ها پیدا می‌کند. سپس به صفحهٔ Files برگردید و پوشه‌ای را که سلول دقیقاً چاپ کرده باز کنید. دفترچهٔ موقت باید در همان پوشه‌ای باشد که ZIP قرار دارد. پس از بازکردن پروژه، می‌توانید دفترچهٔ موقت را حذف کنید. ZIP را تا پایان بررسی پاک نکنید.
 
 ## ۲. باز کردن دفترچه و بررسی محیط
 
